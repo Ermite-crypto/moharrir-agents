@@ -5,13 +5,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'android-source.part*'
+      - 'android-v3.part*'
       - 'README_APK_AR.md'
       - '.github/workflows/build-android-apk.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'android-source.part*'
+      - 'android-v3.part*'
       - 'README_APK_AR.md'
       - '.github/workflows/build-android-apk.yml'
       - 'android-build-trigger.txt'
@@ -33,12 +33,12 @@ jobs:
 
       - name: Verify source chunks
         run: |
-          wc -c android-source.part00 android-source.part01 android-source.part02 android-source.part03
-          sha256sum android-source.part00 android-source.part01 android-source.part02 android-source.part03
+          wc -c android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
+          sha256sum android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
 
       - name: Restore Android source
         run: |
-          cat android-source.part00 android-source.part01 android-source.part02 android-source.part03 | base64 --decode > android-source.tar.gz
+          cat android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
           gzip -t android-source.tar.gz
           mkdir -p android
           tar -xzf android-source.tar.gz -C android
