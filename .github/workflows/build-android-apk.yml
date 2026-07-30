@@ -86,11 +86,14 @@ jobs:
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
-          unzip -l "$APK" | grep classes.dex
-          unzip -p "$APK" AndroidManifest.xml 2>/dev/null | strings | grep -q ':agent_coordinator'
-          unzip -p "$APK" AndroidManifest.xml 2>/dev/null | strings | grep -q ':agent_finalizer'
-          unzip -p "$APK" classes.dex | strings | grep -q 'private_memory_'
-          unzip -p "$APK" classes.dex | strings | grep -q 'https://api.openai.com/v1/responses'
+          unzip -l "$APK" | grep -E 'classes[0-9]*\.dex'
+          unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_coordinator'
+          unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_finalizer'
+          rm -rf apk-dex && mkdir apk-dex
+          unzip -q "$APK" 'classes*.dex' -d apk-dex
+          strings apk-dex/classes*.dex | grep -q 'private_memory_'
+          strings apk-dex/classes*.dex | grep -q 'https://api.openai.com/v1/responses'
+          strings apk-dex/classes*.dex | grep -q 'parallel_group'
           sha256sum "$APK"
           ls -lh "$APK"
 
