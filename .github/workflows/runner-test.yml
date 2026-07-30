@@ -1,0 +1,14 @@
+name: Runner Availability Test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'runner-test-trigger.txt'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm runner
+        run: echo RUNNER_OK
