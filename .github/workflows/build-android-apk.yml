@@ -84,6 +84,12 @@ jobs:
           s = s.replace('!matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").isEmpty()', 'matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").length()>0')
           p.write_text(s)
 
+          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/api/ResponsesClient.java')
+          s = p.read_text()
+          s = s.replace('private JSONArray tools(AgentSpec spec){', 'private JSONArray tools(AgentSpec spec) throws JSONException{')
+          s = s.replace('private JSONObject textFormat(){', 'private JSONObject textFormat() throws JSONException{')
+          p.write_text(s)
+
           p = Path('android/app/src/main/java/ma/gov/moharrir/independent/storage/PrivateMemoryStore.java')
           s = p.read_text()
           old = 'while(c.moveToNext()) { JSONObject o=new JSONObject(); o.put("role",c.getString(0)); o.put("content",c.getString(1)); o.put("ts",c.getLong(2)); a.put(o); }'
