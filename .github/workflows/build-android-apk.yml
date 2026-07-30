@@ -36,7 +36,7 @@ jobs:
           wc -c android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
           sha256sum android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
 
-      - name: Restore Android source
+      - name: Restore and verify Android source
         run: |
           cat android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
           gzip -t android-source.tar.gz
@@ -44,6 +44,36 @@ jobs:
           tar -xzf android-source.tar.gz -C android
           test -f android/settings.gradle.kts
           python android/tests/verify_architecture.py
+
+      - name: Apply compiler compatibility corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java')
+          s = p.read_text()
+          start = s.index('    public JSONObject toJson() {')
+          end = s.index('    public static AgentEnvelope fromJson', start)
+          method = '''    public JSONObject toJson() {
+              try {
+                  JSONObject o = new JSONObject();
+                  o.put("message_id", messageId); o.put("job_id", jobId); o.put("from_agent", fromAgent);
+                  o.put("to_agent", toAgent); o.put("document_type", documentType); o.put("user_request", userRequest);
+                  o.put("shared_context", sharedContext); o.put("parent_message_id", parentMessageId);
+                  o.put("hop", hop); o.put("attachment_paths", attachmentPaths); o.put("metadata", metadata);
+                  return o;
+              } catch (org.json.JSONException ex) {
+                  throw new IllegalStateException(ex);
+              }
+          }
+
+          '''
+          p.write_text(s[:start] + method + s[end:])
+
+          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java')
+          s = p.read_text().replace('.isEmpty()', '.length()==0')
+          p.write_text(s)
+          PY
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
