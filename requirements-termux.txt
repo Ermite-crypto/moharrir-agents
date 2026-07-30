@@ -1,0 +1,7 @@
+openai-agents
+fastapi
+uvicorn
+python-multipart
+pydantic
+pypdf
+python-docx
