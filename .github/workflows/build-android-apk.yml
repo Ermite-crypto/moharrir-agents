@@ -40,20 +40,21 @@ jobs:
           e1d6649757849aaa3abc740f68c3413b321048b38457ada7e2d102797cab4ab7  android-v4.part04
           cd13e07e8dc767cddd014341aae23c75659d56bf82fa0c2ee017c0b18296865f  android-v4.part05
           e6b55e98043992fd7a79a19439232ae39d1a8c7c493c26d547d7d595aa8dcaad  android-v4.part06
-          c60fa5ab27ae985624bb824fe92197eec18f165c8831dd258df917770306e42d  android-v4.part07
+          fbdbbf2b6dba04bc7902cd4aab304055489d3fe69c6867bde667afa0fb7d66d9  android-v4.part07
           EOF
           sha256sum -c v4-chunks.sha256
           cat android-v4.part00 android-v4.part01 android-v4.part02 android-v4.part03 android-v4.part04 android-v4.part05 android-v4.part06 android-v4.part07 > android-v4-source.b64.rebuilt
-          echo 'cc625378f043ab21bd7d19d3dde020188f2ea0b7e34e5211d65948a6f0dc5d76  android-v4-source.b64.rebuilt' | sha256sum -c -
+          echo 'b7a20a402ce8f4de271b5261ef737b049a75c3954c732764ab55767fbaf3b174  android-v4-source.b64.rebuilt' | sha256sum -c -
 
       - name: Restore and verify v4 source
         run: |
           base64 --decode android-v4-source.b64.rebuilt > android-v4-source.tar.gz
-          echo '90fae3f65124bbf030f1fd5f23440b581f8deefb3411edb9a8cd26e947ee39da  android-v4-source.tar.gz' | sha256sum -c -
+          echo '7697f2c059aa61898f7ae3e02c2d66a7b9e7220dcef047409cde389d19e690d7  android-v4-source.tar.gz' | sha256sum -c -
           gzip -t android-v4-source.tar.gz
           mkdir -p android
           tar -xzf android-v4-source.tar.gz -C android
           test -f android/settings.gradle.kts
+          test ! -e android/app/src/main/res/values/styles.xml.tmp
           python android/tests/verify_architecture.py
           grep -q 'SecureVaultProvider' android/app/src/main/AndroidManifest.xml
           grep -q 'probeCoordinatorKey' android/app/src/main/java/ma/gov/moharrir/independent/bus/OrchestrationService.java
