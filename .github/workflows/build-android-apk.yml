@@ -36,7 +36,7 @@ jobs:
           wc -c android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
           sha256sum android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
 
-      - name: Restore and verify Android source
+      - name: Restore and verify clean Android source
         run: |
           cat android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
           gzip -t android-source.tar.gz
@@ -44,60 +44,10 @@ jobs:
           tar -xzf android-source.tar.gz -C android
           test -f android/settings.gradle.kts
           python android/tests/verify_architecture.py
-
-      - name: Apply compiler compatibility corrections
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          def wrap_to_json(path, next_marker, body):
-              p = Path(path)
-              s = p.read_text()
-              start = s.index('    public JSONObject toJson() {')
-              end = s.index(next_marker, start)
-              method = '    public JSONObject toJson() {\n        try {\n' + body + '            return o;\n        } catch (org.json.JSONException ex) {\n            throw new IllegalStateException(ex);\n        }\n    }\n\n'
-              p.write_text(s[:start] + method + s[end:])
-
-          wrap_to_json(
-              'android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java',
-              '    public static AgentEnvelope fromJson',
-              '            JSONObject o = new JSONObject();\n'
-              '            o.put("message_id", messageId); o.put("job_id", jobId); o.put("from_agent", fromAgent);\n'
-              '            o.put("to_agent", toAgent); o.put("document_type", documentType); o.put("user_request", userRequest);\n'
-              '            o.put("shared_context", sharedContext); o.put("parent_message_id", parentMessageId);\n'
-              '            o.put("hop", hop); o.put("attachment_paths", attachmentPaths); o.put("metadata", metadata);\n'
-          )
-
-          wrap_to_json(
-              'android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentDecision.java',
-              '    public static AgentDecision fromJson',
-              '            JSONObject o = new JSONObject();\n'
-              '            o.put("agent_id",agentId); o.put("summary",summary); o.put("output",output);\n'
-              '            o.put("final_document",finalDocument); o.put("status",status); o.put("confidence",confidence);\n'
-              '            o.put("handoffs",handoffs); o.put("evidence",evidence); o.put("missing",missing); o.put("tool_trace",toolTrace);\n'
-          )
-
-          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java')
-          s = p.read_text()
-          s = s.replace('public static JSONObject execute(String tool,String input,String context){', 'public static JSONObject execute(String tool,String input,String context) throws JSONException{')
-          s = s.replace('!matches(text,"\\\\[[^\\\\]]+\\\\]").isEmpty()', 'matches(text,"\\\\[[^\\\\]]+\\\\]").length()>0')
-          s = s.replace('!matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").isEmpty()', 'matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").length()>0')
-          p.write_text(s)
-
-          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/api/ResponsesClient.java')
-          s = p.read_text()
-          s = s.replace('private JSONArray tools(AgentSpec spec){', 'private JSONArray tools(AgentSpec spec) throws JSONException{')
-          s = s.replace('private JSONObject textFormat(){', 'private JSONObject textFormat() throws JSONException{')
-          p.write_text(s)
-
-          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/storage/PrivateMemoryStore.java')
-          s = p.read_text()
-          old = 'while(c.moveToNext()) { JSONObject o=new JSONObject(); o.put("role",c.getString(0)); o.put("content",c.getString(1)); o.put("ts",c.getLong(2)); a.put(o); }'
-          new = 'while(c.moveToNext()) { try { JSONObject o=new JSONObject(); o.put("role",c.getString(0)); o.put("content",c.getString(1)); o.put("ts",c.getLong(2)); a.put(o); } catch (org.json.JSONException ex) { throw new IllegalStateException(ex); } }'
-          if old not in s:
-              raise SystemExit('PrivateMemoryStore compatibility target not found')
-          p.write_text(s.replace(old, new))
-          PY
+          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java
+          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/api/ResponsesClient.java
+          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java
+          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentDecision.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -116,20 +66,26 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build debug APK
+      - name: Build debug APK from clean source
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Verify APK
+      - name: Verify APK structure
         run: |
-          test -f android/app/build/outputs/apk/debug/app-debug.apk
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep classes.dex
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          unzip -l "$APK" | grep classes.dex
+          unzip -p "$APK" AndroidManifest.xml 2>/dev/null | strings | grep -q ':agent_coordinator'
+          unzip -p "$APK" AndroidManifest.xml 2>/dev/null | strings | grep -q ':agent_finalizer'
+          unzip -p "$APK" classes.dex | strings | grep -q 'private_memory_'
+          unzip -p "$APK" classes.dex | strings | grep -q 'https://api.openai.com/v1/responses'
+          sha256sum "$APK"
+          ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: moharrir-independent-agents-v3-apk
+          name: moharrir-independent-agents-v3-clean-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
