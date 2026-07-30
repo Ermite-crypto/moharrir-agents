@@ -1,1 +1,1 @@
-Build process-isolated independent-agent APK v3 — integrity retry.
+Build process-isolated independent-agent APK v3 — verified chunks retry.
