@@ -2,19 +2,12 @@ name: Build Moharrir Android APK
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'android-v3.part*'
-      - 'README_APK_AR.md'
-      - '.github/workflows/build-android-apk.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'android-v3.part*'
-      - 'README_APK_AR.md'
+      - 'android-v4-source.b64'
       - '.github/workflows/build-android-apk.yml'
-      - 'android-build-trigger.txt'
+      - 'README_APK_AR.md'
 
 permissions:
   contents: read
@@ -31,35 +24,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify source chunks
+      - name: Restore and verify v4 source
         run: |
-          cat > source-chunks.sha256 <<'EOF'
-          ece58e1eb28c9e88888f032f7c9f7abf550e3edeb87fe82b65125928a199e206  android-v3.part00
-          baca89b1dd3002ab9b2d45187b16bbff7225202742db39ed2ea39f3a38fbcfff  android-v3.part01a
-          9e131098b0f3136d75769599e4278c666723b8eb19b24d0bdb0e1129a6e31a20  android-v3.part01b
-          72d4ab7a632599dde75e4ae2c385d976780562a2382f672bdf7bf9b368642bc9  android-v3.part02
-          1207e2c1983139e1bc45f4c0752dc2b1d46d8f1754b01f36a805586723222524  android-v3.part03
-          6c506b755f8ef168a9981854b874a8603297dae1cec8d03732c6005640b3cb82  android-v3.part04
-          4cd27162fd3d3400cc9c658e64a25714295e39d4af6fd692967a97968d67f417  android-v3.part05
-          1ce2e47c992d78d2be0ab2cf979d6fbfa91a0306bfe89e8302efcdeaf67ecf7f  android-v3.part06
-          6392b76e3d7e4ee43fa6072a26ce3156f062cafb5aec64ba60dae4184513c64d  android-v3.part07
-          EOF
-          sha256sum -c source-chunks.sha256
-          wc -c android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
-
-      - name: Restore and verify clean Android source
-        run: |
-          cat android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
-          echo '6af6c3e05b54188cda802d6bfe49f6ef52336c057ca8235edbd97490ad0f5838  android-source.tar.gz' | sha256sum -c -
-          gzip -t android-source.tar.gz
+          echo 'cc625378f043ab21bd7d19d3dde020188f2ea0b7e34e5211d65948a6f0dc5d76  android-v4-source.b64' | sha256sum -c -
+          base64 --decode android-v4-source.b64 > android-v4-source.tar.gz
+          echo '90fae3f65124bbf030f1fd5f23440b581f8deefb3411edb9a8cd26e947ee39da  android-v4-source.tar.gz' | sha256sum -c -
+          gzip -t android-v4-source.tar.gz
           mkdir -p android
-          tar -xzf android-source.tar.gz -C android
+          tar -xzf android-v4-source.tar.gz -C android
           test -f android/settings.gradle.kts
           python android/tests/verify_architecture.py
-          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java
-          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/api/ResponsesClient.java
-          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java
-          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentDecision.java
+          grep -q 'SecureVaultProvider' android/app/src/main/AndroidManifest.xml
+          grep -q 'probeCoordinatorKey' android/app/src/main/java/ma/gov/moharrir/independent/bus/OrchestrationService.java
+          grep -q 'documentCategorySpinner' android/app/src/main/res/layout/activity_main.xml
+          grep -q 'gpt-5.6-terra' android/app/src/main/java/ma/gov/moharrir/independent/ModelCatalog.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -78,29 +56,33 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build debug APK from clean source
+      - name: Build APK
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Verify APK structure
+      - name: Verify APK product contract
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
+          unzip -t "$APK"
           unzip -l "$APK" | grep -E 'classes[0-9]*\.dex'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_coordinator'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_finalizer'
+          unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q 'ma.gov.moharrir.independent.securevault'
           rm -rf apk-dex && mkdir apk-dex
           unzip -q "$APK" 'classes*.dex' -d apk-dex
           strings apk-dex/classes*.dex | grep -q 'private_memory_'
           strings apk-dex/classes*.dex | grep -q 'https://api.openai.com/v1/responses'
-          strings apk-dex/classes*.dex | grep -q 'parallel_group'
+          strings apk-dex/classes*.dex | grep -q 'probeCoordinatorKey'
+          strings apk-dex/classes*.dex | grep -q 'gpt-5.6-terra'
+          strings apk-dex/classes*.dex | grep -q 'المراسلات والأجوبة الإدارية'
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: moharrir-independent-agents-v3-clean-apk
+          name: moharrir-professional-v4-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
