@@ -82,6 +82,14 @@ jobs:
           s = s.replace('!matches(text,"\\\\[[^\\\\]]+\\\\]").isEmpty()', 'matches(text,"\\\\[[^\\\\]]+\\\\]").length()>0')
           s = s.replace('!matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").isEmpty()', 'matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").length()>0')
           p.write_text(s)
+
+          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/storage/PrivateMemoryStore.java')
+          s = p.read_text()
+          old = 'while(c.moveToNext()) { JSONObject o=new JSONObject(); o.put("role",c.getString(0)); o.put("content",c.getString(1)); o.put("ts",c.getLong(2)); a.put(o); }'
+          new = 'while(c.moveToNext()) { try { JSONObject o=new JSONObject(); o.put("role",c.getString(0)); o.put("content",c.getString(1)); o.put("ts",c.getLong(2)); a.put(o); } catch (org.json.JSONException ex) { throw new IllegalStateException(ex); } }'
+          if old not in s:
+              raise SystemExit('PrivateMemoryStore compatibility target not found')
+          p.write_text(s.replace(old, new))
           PY
 
       - name: Set up Java 17
