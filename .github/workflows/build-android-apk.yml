@@ -8,6 +8,13 @@ on:
       - 'android-source.part*'
       - 'README_APK_AR.md'
       - '.github/workflows/build-android-apk.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android-source.part*'
+      - 'README_APK_AR.md'
+      - '.github/workflows/build-android-apk.yml'
+      - 'android-build-trigger.txt'
 
 permissions:
   contents: read
