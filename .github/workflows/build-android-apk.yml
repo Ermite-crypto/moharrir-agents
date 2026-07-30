@@ -33,12 +33,24 @@ jobs:
 
       - name: Verify source chunks
         run: |
-          wc -c android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
-          sha256sum android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
+          cat > source-chunks.sha256 <<'EOF'
+          ece58e1eb28c9e88888f032f7c9f7abf550e3edeb87fe82b65125928a199e206  android-v3.part00
+          baca89b1dd3002ab9b2d45187b16bbff7225202742db39ed2ea39f3a38fbcfff  android-v3.part01a
+          9e131098b0f3136d75769599e4278c666723b8eb19b24d0bdb0e1129a6e31a20  android-v3.part01b
+          72d4ab7a632599dde75e4ae2c385d976780562a2382f672bdf7bf9b368642bc9  android-v3.part02
+          1207e2c1983139e1bc45f4c0752dc2b1d46d8f1754b01f36a805586723222524  android-v3.part03
+          6c506b755f8ef168a9981854b874a8603297dae1cec8d03732c6005640b3cb82  android-v3.part04
+          4cd27162fd3d3400cc9c658e64a25714295e39d4af6fd692967a97968d67f417  android-v3.part05
+          1ce2e47c992d78d2be0ab2cf979d6fbfa91a0306bfe89e8302efcdeaf67ecf7f  android-v3.part06
+          6392b76e3d7e4ee43fa6072a26ce3156f062cafb5aec64ba60dae4184513c64d  android-v3.part07
+          EOF
+          sha256sum -c source-chunks.sha256
+          wc -c android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
 
       - name: Restore and verify clean Android source
         run: |
-          cat android-v3.part00 android-v3.part01 android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
+          cat android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
+          echo '6af6c3e05b54188cda802d6bfe49f6ef52336c057ca8235edbd97490ad0f5838  android-source.tar.gz' | sha256sum -c -
           gzip -t android-source.tar.gz
           mkdir -p android
           tar -xzf android-source.tar.gz -C android
