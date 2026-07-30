@@ -31,12 +31,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify source chunks
+        run: |
+          wc -c android-source.part00 android-source.part01 android-source.part02 android-source.part03
+          sha256sum android-source.part00 android-source.part01 android-source.part02 android-source.part03
+
       - name: Restore Android source
         run: |
           cat android-source.part00 android-source.part01 android-source.part02 android-source.part03 | base64 --decode > android-source.tar.gz
+          gzip -t android-source.tar.gz
           mkdir -p android
           tar -xzf android-source.tar.gz -C android
           test -f android/settings.gradle.kts
+          python android/tests/verify_architecture.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -62,12 +69,13 @@ jobs:
       - name: Verify APK
         run: |
           test -f android/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep classes.dex
           ls -lh android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: moharrir-android-apk
+          name: moharrir-independent-agents-v3-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
