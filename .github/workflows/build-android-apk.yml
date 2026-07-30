@@ -79,6 +79,7 @@ jobs:
 
           p = Path('android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java')
           s = p.read_text()
+          s = s.replace('public static JSONObject execute(String tool,String input,String context){', 'public static JSONObject execute(String tool,String input,String context) throws JSONException{')
           s = s.replace('!matches(text,"\\\\[[^\\\\]]+\\\\]").isEmpty()', 'matches(text,"\\\\[[^\\\\]]+\\\\]").length()>0')
           s = s.replace('!matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").isEmpty()', 'matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").length()>0')
           p.write_text(s)
