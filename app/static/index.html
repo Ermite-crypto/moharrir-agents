@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <title>محرر — وكلاء مستقلون</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;color:#111827;background:#f3f4f6}
+    *{box-sizing:border-box} body{margin:0}.top{background:#111827;color:white;padding:18px 16px;position:sticky;top:0;z-index:3}.top h1{font-size:19px;margin:0}.top p{font-size:12px;margin:6px 0 0;color:#d1d5db}
+    main{max-width:850px;margin:auto;padding:14px}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px #0000000d}
+    label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}input,select,textarea,button{width:100%;font:inherit;border-radius:11px}input,select,textarea{border:1px solid #d1d5db;padding:11px;background:white}textarea{min-height:150px;resize:vertical}button{border:0;padding:13px;font-weight:800;background:#111827;color:white;margin-top:12px}button:disabled{opacity:.55}.muted{font-size:12px;color:#6b7280;line-height:1.7}.warn{background:#fffbeb;border-color:#fde68a}.status{display:none}.stage{border-right:4px solid #111827;padding:9px 11px;margin:8px 0;background:#f9fafb;border-radius:8px}.stage small{color:#6b7280}.output{white-space:pre-wrap;line-height:1.9;font-family:inherit;background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:14px;min-height:180px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px}.actions button{width:auto;flex:1}.ok{color:#166534}.error{color:#b91c1c;white-space:pre-wrap}.badge{display:inline-block;border:1px solid #d1d5db;border-radius:999px;padding:4px 8px;font-size:11px;margin:3px}
+    @media(max-width:600px){.row{grid-template-columns:1fr}.card{border-radius:12px}main{padding:10px}}
+  </style>
+</head>
+<body>
+<header class="top"><h1>محرر — منظومة وكلاء مستقلة</h1><p>OpenAI Agents SDK · وكلاء فعلية · Handoffs · Session · Trace</p></header>
+<main>
+  <section class="card warn">
+    <strong>المفتاح</strong>
+    <p class="muted">يُحفظ محلياً في متصفح هاتفك عند اختيار ذلك، ويرسل عبر HTTPS إلى خادم التطبيق لكل تشغيل. الخادم لا يكتبه في قاعدة البيانات.</p>
+    <label for="key">OpenAI API Key</label><input id="key" type="password" autocomplete="off" placeholder="sk-..." />
+    <label><input id="remember" type="checkbox" style="width:auto"> حفظ المفتاح على هذا الهاتف</label>
+  </section>
+
+  <form id="form" class="card">
+    <div class="row">
+      <div><label for="type">نوع الوثيقة</label><select id="type" name="document_type"><option>مراسلة إدارية</option><option>تقرير</option><option>مذكرة</option><option>محضر اجتماع</option><option>دورية</option><option>جواب إداري</option><option>مشروع قرار</option><option>عرض مؤسساتي</option></select></div>
+      <div><label for="model">النموذج</label><input id="model" name="model" value="gpt-5.4-mini" /></div>
+    </div>
+    <label for="request">المعطيات والتعليمات</label><textarea id="request" name="user_request" required placeholder="حدد الجهة المصدرة، المرسل إليه، الموضوع، الوقائع، المراجع والإجراء المطلوب..."></textarea>
+    <label for="files">المرفقات</label><input id="files" type="file" multiple accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx" />
+    <p class="muted">PDF المصور بلا طبقة نصية لا يخضع لـOCR في هذه النسخة. الحد 10MB لكل ملف.</p>
+    <button id="run" type="submit">تشغيل منظومة الوكلاء</button>
+  </form>
+
+  <section id="status" class="card status"><strong>التنفيذ</strong><p id="statusText" class="muted"></p><div id="error" class="error"></div></section>
+  <section id="audit" class="card status"><strong>سجل الوكلاء</strong><div id="events"></div></section>
+  <section id="result" class="card status"><div class="actions"><button id="copy" type="button">نسخ</button><button id="download" type="button">تنزيل TXT</button></div><h3>الوثيقة النهائية</h3><div id="badges"></div><div id="output" class="output"></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const saved=localStorage.getItem('moharrir_openai_key'); if(saved){$('key').value=saved;$('remember').checked=true}
+$('form').addEventListener('submit', async e=>{
+ e.preventDefault(); const key=$('key').value.trim(); if(!key){alert('أدخل مفتاح OpenAI');return}
+ if($('remember').checked)localStorage.setItem('moharrir_openai_key',key);else localStorage.removeItem('moharrir_openai_key');
+ $('run').disabled=true;$('status').style.display='block';$('audit').style.display='none';$('result').style.display='none';$('error').textContent='';$('statusText').textContent='تعمل الوكلاء المستقلة وتراجع النتائج عبر بوابة handoff...';
+ const fd=new FormData(); fd.append('document_type',$('type').value);fd.append('user_request',$('request').value);fd.append('model',$('model').value);
+ for(const f of $('files').files)fd.append('files',f);
+ try{
+  const r=await fetch('/api/run',{method:'POST',headers:{'X-OpenAI-Key':key},body:fd}); const data=await r.json();
+  if(!r.ok)throw new Error(data.detail||'فشل غير محدد');
+  $('statusText').textContent=`اكتمل التشغيل. رقم العملية: ${data.job_id}`;
+  $('events').innerHTML=''; for(const ev of data.events){const d=document.createElement('div');d.className='stage';d.innerHTML=`<strong>${escapeHtml(ev.stage)}</strong><br><small>آخر وكيل: ${escapeHtml(ev.last_agent||'—')}</small>`;$('events').appendChild(d)}
+  $('audit').style.display='block';$('output').textContent=data.document_text;$('badges').innerHTML=`<span class="badge">${escapeHtml(data.status)}</span><span class="badge">${data.agent_architecture.independent_agents} وكلاء</span><span class="badge">Handoffs فعلية</span>`;$('result').style.display='block';
+ }catch(err){$('error').textContent=err.message;$('statusText').textContent='توقف التنفيذ.'}finally{$('run').disabled=false}
+});
+$('copy').onclick=()=>navigator.clipboard.writeText($('output').textContent);
+$('download').onclick=()=>{const b=new Blob([$('output').textContent],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='وثيقة-محرر.txt';a.click();URL.revokeObjectURL(a.href)};
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js');
+</script>
+</body></html>
