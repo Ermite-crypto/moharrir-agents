@@ -1,1 +1,1 @@
-Build process-isolated independent-agent APK v3 — local tool exception retry.
+Build process-isolated independent-agent APK v3 — response schema retry.
