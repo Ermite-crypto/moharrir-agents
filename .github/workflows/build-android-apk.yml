@@ -3,18 +3,17 @@ name: Build Moharrir Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [v4-professional-fix]
     paths:
-      - 'android-v3.part*'
-      - 'README_APK_AR.md'
+      - 'android-v4.part*'
       - '.github/workflows/build-android-apk.yml'
+      - 'README_APK_AR.md'
   pull_request:
     branches: [main]
     paths:
-      - 'android-v3.part*'
-      - 'README_APK_AR.md'
+      - 'android-v4.part*'
       - '.github/workflows/build-android-apk.yml'
-      - 'android-build-trigger.txt'
+      - 'README_APK_AR.md'
 
 permissions:
   contents: read
@@ -33,33 +32,35 @@ jobs:
 
       - name: Verify source chunks
         run: |
-          cat > source-chunks.sha256 <<'EOF'
-          ece58e1eb28c9e88888f032f7c9f7abf550e3edeb87fe82b65125928a199e206  android-v3.part00
-          baca89b1dd3002ab9b2d45187b16bbff7225202742db39ed2ea39f3a38fbcfff  android-v3.part01a
-          9e131098b0f3136d75769599e4278c666723b8eb19b24d0bdb0e1129a6e31a20  android-v3.part01b
-          72d4ab7a632599dde75e4ae2c385d976780562a2382f672bdf7bf9b368642bc9  android-v3.part02
-          1207e2c1983139e1bc45f4c0752dc2b1d46d8f1754b01f36a805586723222524  android-v3.part03
-          6c506b755f8ef168a9981854b874a8603297dae1cec8d03732c6005640b3cb82  android-v3.part04
-          4cd27162fd3d3400cc9c658e64a25714295e39d4af6fd692967a97968d67f417  android-v3.part05
-          1ce2e47c992d78d2be0ab2cf979d6fbfa91a0306bfe89e8302efcdeaf67ecf7f  android-v3.part06
-          6392b76e3d7e4ee43fa6072a26ce3156f062cafb5aec64ba60dae4184513c64d  android-v3.part07
+          cat > v4-chunks.sha256 <<'EOF'
+          42de06346c2cabd5521092ce7857bb88e74f35d9dcca05ea2b0915693591811a  android-v4.part00
+          5f7bf20c9ce8a99392c71756c23473d144dd9e93cf8aa189ccbc3468dd5807d7  android-v4.part01
+          689697a1341905e3d44ca2e7c7251cabfac6de13c7adc12fcae3443c208ec28c  android-v4.part02
+          80f9c57ce21167064aab2468f2aa5f3fe8dfa8fcd7aae11a719f09c2eb0e704e  android-v4.part03
+          e1d6649757849aaa3abc740f68c3413b321048b38457ada7e2d102797cab4ab7  android-v4.part04
+          cd13e07e8dc767cddd014341aae23c75659d56bf82fa0c2ee017c0b18296865f  android-v4.part05
+          e6b55e98043992fd7a79a19439232ae39d1a8c7c493c26d547d7d595aa8dcaad  android-v4.part06
+          fbdbbf2b6dba04bc7902cd4aab304055489d3fe69c6867bde667afa0fb7d66d9  android-v4.part07
           EOF
-          sha256sum -c source-chunks.sha256
-          wc -c android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07
+          sha256sum -c v4-chunks.sha256
+          cat android-v4.part00 android-v4.part01 android-v4.part02 android-v4.part03 android-v4.part04 android-v4.part05 android-v4.part06 android-v4.part07 > android-v4-source.b64.rebuilt
+          echo 'b7a20a402ce8f4de271b5261ef737b049a75c3954c732764ab55767fbaf3b174  android-v4-source.b64.rebuilt' | sha256sum -c -
 
-      - name: Restore and verify clean Android source
+      - name: Restore and verify v4 source
         run: |
-          cat android-v3.part00 android-v3.part01a android-v3.part01b android-v3.part02 android-v3.part03 android-v3.part04 android-v3.part05 android-v3.part06 android-v3.part07 | base64 --decode > android-source.tar.gz
-          echo '6af6c3e05b54188cda802d6bfe49f6ef52336c057ca8235edbd97490ad0f5838  android-source.tar.gz' | sha256sum -c -
-          gzip -t android-source.tar.gz
+          base64 --decode android-v4-source.b64.rebuilt > android-v4-source.tar.gz
+          echo '7697f2c059aa61898f7ae3e02c2d66a7b9e7220dcef047409cde389d19e690d7  android-v4-source.tar.gz' | sha256sum -c -
+          gzip -t android-v4-source.tar.gz
           mkdir -p android
-          tar -xzf android-source.tar.gz -C android
+          tar -xzf android-v4-source.tar.gz -C android
           test -f android/settings.gradle.kts
+          test ! -e android/app/src/main/res/values/styles.xml.tmp
           python android/tests/verify_architecture.py
-          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java
-          grep -q 'throws JSONException' android/app/src/main/java/ma/gov/moharrir/independent/api/ResponsesClient.java
-          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java
-          grep -q 'IllegalStateException' android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentDecision.java
+          grep -q 'SecureVaultProvider' android/app/src/main/AndroidManifest.xml
+          grep -q 'probeCoordinatorKey' android/app/src/main/java/ma/gov/moharrir/independent/bus/OrchestrationService.java
+          grep -q 'documentCategorySpinner' android/app/src/main/res/layout/activity_main.xml
+          grep -q 'gpt-5.6-terra' android/app/src/main/java/ma/gov/moharrir/independent/ModelCatalog.java
+          grep -q 'المراسلات والأجوبة الإدارية' android/app/src/main/java/ma/gov/moharrir/independent/DocumentCatalog.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -78,29 +79,37 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build debug APK from clean source
+      - name: Build APK
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Verify APK structure
+      - name: Verify APK product contract
         run: |
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
+          unzip -t "$APK"
           unzip -l "$APK" | grep -E 'classes[0-9]*\.dex'
+          unzip -l "$APK" | grep -q 'res/layout/activity_main.xml'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_coordinator'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_finalizer'
+          unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q 'ma.gov.moharrir.independent.securevault'
           rm -rf apk-dex && mkdir apk-dex
           unzip -q "$APK" 'classes*.dex' -d apk-dex
-          strings apk-dex/classes*.dex | grep -q 'private_memory_'
-          strings apk-dex/classes*.dex | grep -q 'https://api.openai.com/v1/responses'
-          strings apk-dex/classes*.dex | grep -q 'parallel_group'
+          strings apk-dex/classes*.dex > apk-strings.txt
+          grep -q 'private_memory_' apk-strings.txt
+          grep -q 'https://api.openai.com/v1/responses' apk-strings.txt
+          grep -q 'probeCoordinatorKey' apk-strings.txt
+          grep -q 'gpt-5.6-terra' apk-strings.txt
+          grep -q 'SecureVaultProvider' apk-strings.txt
+          grep -q 'DocumentCatalog' apk-strings.txt
+          grep -q 'ModelCatalog' apk-strings.txt
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: moharrir-independent-agents-v3-clean-apk
+          name: moharrir-professional-v4-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
