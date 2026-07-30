@@ -5,13 +5,13 @@ on:
   push:
     branches: [v4-professional-fix]
     paths:
-      - 'android-v4-source.b64'
+      - 'android-v4.part*'
       - '.github/workflows/build-android-apk.yml'
       - 'README_APK_AR.md'
   pull_request:
     branches: [main]
     paths:
-      - 'android-v4-source.b64'
+      - 'android-v4.part*'
       - '.github/workflows/build-android-apk.yml'
       - 'README_APK_AR.md'
 
@@ -30,10 +30,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify source chunks
+        run: |
+          cat > v4-chunks.sha256 <<'EOF'
+          42de06346c2cabd5521092ce7857bb88e74f35d9dcca05ea2b0915693591811a  android-v4.part00
+          5f7bf20c9ce8a99392c71756c23473d144dd9e93cf8aa189ccbc3468dd5807d7  android-v4.part01
+          689697a1341905e3d44ca2e7c7251cabfac6de13c7adc12fcae3443c208ec28c  android-v4.part02
+          80f9c57ce21167064aab2468f2aa5f3fe8dfa8fcd7aae11a719f09c2eb0e704e  android-v4.part03
+          e1d6649757849aaa3abc740f68c3413b321048b38457ada7e2d102797cab4ab7  android-v4.part04
+          cd13e07e8dc767cddd014341aae23c75659d56bf82fa0c2ee017c0b18296865f  android-v4.part05
+          e6b55e98043992fd7a79a19439232ae39d1a8c7c493c26d547d7d595aa8dcaad  android-v4.part06
+          c60fa5ab27ae985624bb824fe92197eec18f165c8831dd258df917770306e42d  android-v4.part07
+          EOF
+          sha256sum -c v4-chunks.sha256
+          cat android-v4.part00 android-v4.part01 android-v4.part02 android-v4.part03 android-v4.part04 android-v4.part05 android-v4.part06 android-v4.part07 > android-v4-source.b64.rebuilt
+          echo 'cc625378f043ab21bd7d19d3dde020188f2ea0b7e34e5211d65948a6f0dc5d76  android-v4-source.b64.rebuilt' | sha256sum -c -
+
       - name: Restore and verify v4 source
         run: |
-          echo 'cc625378f043ab21bd7d19d3dde020188f2ea0b7e34e5211d65948a6f0dc5d76  android-v4-source.b64' | sha256sum -c -
-          base64 --decode android-v4-source.b64 > android-v4-source.tar.gz
+          base64 --decode android-v4-source.b64.rebuilt > android-v4-source.tar.gz
           echo '90fae3f65124bbf030f1fd5f23440b581f8deefb3411edb9a8cd26e947ee39da  android-v4-source.tar.gz' | sha256sum -c -
           gzip -t android-v4-source.tar.gz
           mkdir -p android
@@ -44,6 +59,7 @@ jobs:
           grep -q 'probeCoordinatorKey' android/app/src/main/java/ma/gov/moharrir/independent/bus/OrchestrationService.java
           grep -q 'documentCategorySpinner' android/app/src/main/res/layout/activity_main.xml
           grep -q 'gpt-5.6-terra' android/app/src/main/java/ma/gov/moharrir/independent/ModelCatalog.java
+          grep -q 'المراسلات والأجوبة الإدارية' android/app/src/main/java/ma/gov/moharrir/independent/DocumentCatalog.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -72,16 +88,20 @@ jobs:
           test -f "$APK"
           unzip -t "$APK"
           unzip -l "$APK" | grep -E 'classes[0-9]*\.dex'
+          unzip -l "$APK" | grep -q 'res/layout/activity_main.xml'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_coordinator'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q ':agent_finalizer'
           unzip -p "$APK" AndroidManifest.xml | strings -el | grep -q 'ma.gov.moharrir.independent.securevault'
           rm -rf apk-dex && mkdir apk-dex
           unzip -q "$APK" 'classes*.dex' -d apk-dex
-          strings apk-dex/classes*.dex | grep -q 'private_memory_'
-          strings apk-dex/classes*.dex | grep -q 'https://api.openai.com/v1/responses'
-          strings apk-dex/classes*.dex | grep -q 'probeCoordinatorKey'
-          strings apk-dex/classes*.dex | grep -q 'gpt-5.6-terra'
-          strings apk-dex/classes*.dex | grep -q 'المراسلات والأجوبة الإدارية'
+          strings apk-dex/classes*.dex > apk-strings.txt
+          grep -q 'private_memory_' apk-strings.txt
+          grep -q 'https://api.openai.com/v1/responses' apk-strings.txt
+          grep -q 'probeCoordinatorKey' apk-strings.txt
+          grep -q 'gpt-5.6-terra' apk-strings.txt
+          grep -q 'SecureVaultProvider' apk-strings.txt
+          grep -q 'DocumentCatalog' apk-strings.txt
+          grep -q 'ModelCatalog' apk-strings.txt
           sha256sum "$APK"
           ls -lh "$APK"
 
