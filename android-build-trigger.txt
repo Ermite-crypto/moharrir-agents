@@ -1,1 +1,1 @@
-Build process-isolated independent-agent APK v3 — private memory retry.
+Build process-isolated independent-agent APK v3 — local tool exception retry.
