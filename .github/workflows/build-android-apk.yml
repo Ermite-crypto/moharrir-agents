@@ -50,28 +50,37 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          p = Path('android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java')
-          s = p.read_text()
-          start = s.index('    public JSONObject toJson() {')
-          end = s.index('    public static AgentEnvelope fromJson', start)
-          method = '''    public JSONObject toJson() {
-              try {
-                  JSONObject o = new JSONObject();
-                  o.put("message_id", messageId); o.put("job_id", jobId); o.put("from_agent", fromAgent);
-                  o.put("to_agent", toAgent); o.put("document_type", documentType); o.put("user_request", userRequest);
-                  o.put("shared_context", sharedContext); o.put("parent_message_id", parentMessageId);
-                  o.put("hop", hop); o.put("attachment_paths", attachmentPaths); o.put("metadata", metadata);
-                  return o;
-              } catch (org.json.JSONException ex) {
-                  throw new IllegalStateException(ex);
-              }
-          }
+          def wrap_to_json(path, next_marker, body):
+              p = Path(path)
+              s = p.read_text()
+              start = s.index('    public JSONObject toJson() {')
+              end = s.index(next_marker, start)
+              method = '    public JSONObject toJson() {\n        try {\n' + body + '            return o;\n        } catch (org.json.JSONException ex) {\n            throw new IllegalStateException(ex);\n        }\n    }\n\n'
+              p.write_text(s[:start] + method + s[end:])
 
-          '''
-          p.write_text(s[:start] + method + s[end:])
+          wrap_to_json(
+              'android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentEnvelope.java',
+              '    public static AgentEnvelope fromJson',
+              '            JSONObject o = new JSONObject();\n'
+              '            o.put("message_id", messageId); o.put("job_id", jobId); o.put("from_agent", fromAgent);\n'
+              '            o.put("to_agent", toAgent); o.put("document_type", documentType); o.put("user_request", userRequest);\n'
+              '            o.put("shared_context", sharedContext); o.put("parent_message_id", parentMessageId);\n'
+              '            o.put("hop", hop); o.put("attachment_paths", attachmentPaths); o.put("metadata", metadata);\n'
+          )
+
+          wrap_to_json(
+              'android/app/src/main/java/ma/gov/moharrir/independent/protocol/AgentDecision.java',
+              '    public static AgentDecision fromJson',
+              '            JSONObject o = new JSONObject();\n'
+              '            o.put("agent_id",agentId); o.put("summary",summary); o.put("output",output);\n'
+              '            o.put("final_document",finalDocument); o.put("status",status); o.put("confidence",confidence);\n'
+              '            o.put("handoffs",handoffs); o.put("evidence",evidence); o.put("missing",missing); o.put("tool_trace",toolTrace);\n'
+          )
 
           p = Path('android/app/src/main/java/ma/gov/moharrir/independent/agents/LocalToolRuntime.java')
-          s = p.read_text().replace('.isEmpty()', '.length()==0')
+          s = p.read_text()
+          s = s.replace('!matches(text,"\\\\[[^\\\\]]+\\\\]").isEmpty()', 'matches(text,"\\\\[[^\\\\]]+\\\\]").length()>0')
+          s = s.replace('!matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").isEmpty()', 'matches(text,"(من الجدير بالذكر|مما لا شك فيه|وختاماً يمكن القول)").length()>0')
           p.write_text(s)
           PY
 
