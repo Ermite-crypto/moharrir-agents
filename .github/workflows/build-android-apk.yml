@@ -3,7 +3,7 @@ name: Build Moharrir Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [v4-professional-fix]
+    branches: [main]
     paths:
       - 'android-v4.part*'
       - '.github/workflows/build-android-apk.yml'
